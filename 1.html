@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>아이템 통합 목록 (제목만 표시 및 다중 URL 저장/삭제 기능)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #2c2f33; /* 다크 모드 배경색 */
+            color: #ffffff; /* 글자색 흰색 */
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #444; 
+            padding: 8px;
+            text-align: left;
+            word-wrap: break-word;
+            font-size: 14px;
+        }
+        th {
+            background-color: #36393f; 
+            position: sticky;
+            top: 0;
+            font-size: 16px;
+        }
+        tr:nth-child(even) {
+            background-color: #3e4147; 
+        }
+        /* 항목 구분을 위한 스타일 */
+        .new-section {
+            background-color: #4a4d52;
+            font-weight: bold;
+            text-align: center;
+        }
+        /* 코드를 클릭 가능하게 표시 */
+        .code-cell {
+            cursor: pointer;
+            background-color: #4f545c; 
+            font-family: monospace;
+            position: relative;
+        }
+        .code-cell:hover {
+            background-color: #6a6f79; 
+        }
+        /* 복사 성공 메시지 스타일 */
+        .copy-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .copy-message.show {
+            opacity: 1;
+        }
+        /* URL 입력 및 저장 영역 스타일 */
+        .url-section {
+            margin-top: 20px; 
+            margin-bottom: 20px; 
+            padding: 20px;
+            border: 1px solid #444;
+            border-radius: 5px;
+            background-color: #36393f;
+        }
+        .url-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap; 
+        }
+        /* 입력 필드 (제목, URL) 스타일 */
+        .url-input-group input[type="text"] {
+            flex-grow: 1;
+            padding: 10px; 
+            border: 1px solid #555;
+            border-radius: 4px;
+            min-width: 150px; 
+            background-color: #40444b; 
+            color: #ffffff;
+        }
+        /* 버튼 스타일 */
+        .url-input-group button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            white-space: nowrap; 
+            transition: background-color 0.2s;
+        }
+        .url-save-button {
+            background-color: #4CAF50; /* Green */
+            color: white;
+        }
+        .url-save-button:hover {
+            background-color: #45a049;
+        }
+
+
+        /* ------------------------------------- */
+        /* 🌟 다중 목록 표시 및 항목별 버튼 스타일 (제목만 표시) 🌟 */
+        /* ------------------------------------- */
+        #savedUrlDisplay {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px dashed #666;
+            background-color: #3e4147;
+        }
+        .saved-item {
+            margin-bottom: 10px;
+            padding: 15px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            background-color: #40444b;
+        }
+        .item-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 15px; /* 제목 아래 여백 */
+        }
+        /* URL 텍스트를 숨겼으므로 관련 CSS는 제거됨 */
+        
+        .item-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .item-actions button {
+            padding: 12px 15px; 
+            font-size: 14px;
+            flex-grow: 1; 
+            border-radius: 4px;
+            font-weight: bold;
+            border: 1px solid #222; 
+        }
+        .url-copy-button {
+            background-color: #008CBA; 
+            color: white;
+        }
+        .url-copy-button:hover {
+            background-color: #007bb5;
+        }
+        .url-delete-button {
+            background-color: #f44336; 
+            color: white;
+        }
+        .url-delete-button:hover {
+            background-color: #da190b;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>아이템 통합 목록 (클릭하여 코드 복사)</h1>
+    <div id="copy-feedback" class="copy-message">복사되었습니다!</div>
+    
+    <div class="url-section">
+        <h2>URL 목록 저장/관리</h2>
+        <div class="url-input-group">
+            <input type="text" id="titleInput" placeholder="페이지 제목을 입력하세요 (선택 사항)">
+            <input type="text" id="urlInput" placeholder="URL을 입력하세요 (예: https://example.com)">
+            <button class="url-save-button" onclick="saveUrl()">정보 저장</button>
+        </div>
+        
+        <p><strong>저장된 URL 목록 (페이지를 닫아도 유지):</strong></p>
+        <div id="savedUrlDisplay">저장된 정보가 없습니다.</div>
+    </div>
+<hr>
+    <table>
+        <thead>
+            <tr>
+                <th>코드 (클릭하여 복사)</th>
+                <th>아이템 (원문)</th>
+                <th>아이템 (번역)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="new-section"><td colspan="3">--- 아이템 목록 1 ---</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,q_atticKey,100</td><td>A key to the loft</td><td>다락방 열쇠</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,qs_balloon,100</td><td>Ballons</td><td>풍선</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,battery,100</td><td>Battery</td><td>배터리</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,milk_big,100</td><td>Big Milk</td><td>대형 우유</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,dukeBlood,100</td><td>Blood of the Duke</td><td>공작의 피</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,bomb,100</td><td>Bomb</td><td>폭탄</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,camp,100</td><td>Camping Kit</td><td>캠핑 키트</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,clippedHairs,100</td><td>Clipped Hair</td><td>자른 머리카락</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,Cotton,100</td><td>Cotton</td><td>솜</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,qs_coupon,100</td><td>Coupons</td><td>쿠폰</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,q_curry,100</td><td>Curry</td><td>카레</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,cursedCoin,100</td><td>Cursed Coin</td><td>저주받은 동전</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,redSlime_t,100</td><td>Dark Red Slime</td><td>진홍색 슬라임</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,dildo,100</td><td>Dildo</td><td>딜도</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,dirtyFabric,100</td><td>Dirty Fabric</td><td>더러운 천</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,fix,100</td><td>Fix Kit</td><td>수리 키트</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,Gear,100</td><td>Gear</td><td>톱니바퀴</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,handmadeDoll,100</td><td>Hand-Made Doll</td><td>수제 인형</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,q_yogabook,100</td><td>Kamasutra</td><td>카마수트라</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,app_2ftoilet_piraniko,100</td><td>Leaf with white liquid</td><td>하얀 액체가 묻은 나뭇잎</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,lemonade,100</td><td>Lemonade with a strange smell</td><td>이상한 냄새가 나는 레모네이드</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,love,100</td><td>Love</td><td>사랑</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,map,100</td><td>Map</td><td>지도</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,milk_small,100</td><td>Milk</td><td>우유</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,drug_missy,100</td><td>Missy's drug</td><td>미시의 약</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,onani_missy,100</td><td>Missy's panty</td><td>미시의 팬티</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,nail_t,100</td><td>Nail</td><td>못</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,gem_cem_diamond,100</td><td>Nameless Diamond Sculpture</td><td>이름 없는 다이아몬드 조각상</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,gem_cem_gold,100</td><td>Nameless Gold Sculpture</td><td>이름 없는 금 조각상</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,gem_cem_ruby,100</td><td>Nameless Ruby Sculpture</td><td>이름 없는 루비 조각상</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,q_msg,100</td><td>Natural Condiment</td><td>천연 조미료</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,newBooks,100</td><td>New fairy tales books</td><td>새 동화책</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,paint_t,100</td><td>Paint</td><td>페인트</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,PartsA,100</td><td>PartsA</td><td>부품 A</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,PartsB,100</td><td>PartsB</td><td>부품 B</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,rope,100</td><td>Rope</td><td>밧줄</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,onani_raury,100</td><td>Rori's panty</td><td>로리의 팬티</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,rustyCutter,100</td><td>Rusty Scissors</td><td>녹슨 가위</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,paint,100</td><td>Sandpaper</td><td>사포</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,brokenBones,100</td><td>Shattered Bone</td><td>산산조각 난 뼈</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,brokenWood,100</td><td>Shattered Wood</td><td>산산조각 난 나무</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,headSkul,100</td><td>Skull with Soul</td><td>영혼이 담긴 해골</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,soulChip,100</td><td>Soul Fragment</td><td>영혼 조각</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,Spring,100</td><td>Spring</td><td>용수철</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,chalk_t,100</td><td>Sticky Chalk</td><td>끈적한 분필</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,stinkyPanty,100</td><td>Stinky Panty</td><td>악취 나는 팬티</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,String,100</td><td>String</td><td>실</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,pizza_gift,100</td><td>Super hot madness combination pizza</td><td>엄청나게 매운 광란의 조합 피자</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,book_sexp,100</td><td>The Book of Sex Position</td><td>성 체위의 책</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,toyChip,100</td><td>Toy Chip</td><td>장난감 칩</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,token,100</td><td>Upgrade Token</td><td>업그레이드 토큰</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,whitePaint_t,100</td><td>White Paint</td><td>흰색 페인트</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,wood,100</td><td>White Wood</td><td>하얀 나무</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,Winder,100</td><td>Winder</td><td>태엽</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,wood_t,100</td><td>Wood</td><td>나무</td></tr>
+            <tr class="new-section"><td colspan="3">--- 아이템 목록 2 ---</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,goodHookerShoe,1</td><td>A Shoe of Good-Hooker?</td><td>굿-후커의 신발?</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,analzizer,1</td><td>Analzizer</td><td>애널라이저</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,bat,1</td><td>Baseball Bat</td><td>야구 방망이</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,books,1</td><td>Book</td><td>책</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,sock,1</td><td>Christmas Stocking</td><td>크리스마스 양말</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,cockhorse,1</td><td>Cockhorse</td><td>콕호스 (목마)</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,dolly,1</td><td>Dolly's new outfit</td><td>돌리의 새 복장</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,drill,1</td><td>Drill</td><td>드릴</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,app_undead_dullahan,1</td><td>Dullahan</td><td>듈라한</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,app_undead_ghost,1</td><td>Ghost</td><td>유령</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,goodHooker,1</td><td>Good Hooker</td><td>굿 후커</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,key_graveyard,1</td><td>Gravedigger's Key</td><td>무덤 파는 사람의 열쇠</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,key_toy,1</td><td>Key</td><td>열쇠</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,bat2,1</td><td>LightSaber</td><td>광선검 (라이트세이버)</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,bat3,1</td><td>LightSword</td><td>광검 (라이트소드)</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,app_undead_mimic,1</td><td>Mimic</td><td>미믹</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,pizza_mint,1</td><td>Mint Pizza</td><td>민트 피자</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,pizza_pepe,1</td><td>Pepperoni Pizza</td><td>페퍼로니 피자</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,pizza_ananus,1</td><td>Pineapple Pizza</td><td>파인애플 피자</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,gun2,1</td><td>Power Gun</td><td>파워 건</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,app_undead_skeleton,1</td><td>Sexkeleton</td><td>섹스켈레톤</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,gun3,1</td><td>Super Gun</td><td>슈퍼 건</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,gun,1</td><td>Water Gun</td><td>물총</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,app_undead_zombie,1</td><td>Zombie</td><td>좀비</td></tr>
+            <tr class="new-section"><td colspan="3">--- 행동/퀘스트 코드 목록 (Action) ---</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,blackjack_win,1</td><td>Defines the amount of times blackjack has been won</td><td>**블랙잭 승리 횟수**를 정의</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,lemonbooth,1</td><td>Grants lemonade stand for Raury's quest</td><td>로리의 퀘스트를 위한 **레모네이드 가판대**를 부여</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,q_balloon_cynthia,1</td><td>Is supposed to complete objective for Dolly's quest, does not seem to do anything</td><td>돌리의 퀘스트 목표 완료용 코드 (작동하지 않는 것으로 보임)</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,q_balloon_sindy,1</td><td>Is supposed to complete objective for Dolly's quest, does not seem to do anything</td><td>돌리의 퀘스트 목표 완료용 코드 (작동하지 않는 것으로 보임)</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,q_balloon_zoey,1</td><td>Is supposed to complete objective for Dolly's quest, does not seem to do anything</td><td>돌리의 퀘스트 목표 완료용 코드 (작동하지 않는 것으로 보임)</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,q_coupon_dan,1</td><td>Is supposed to complete objective for some quest, does not seem to do anything</td><td>특정 퀘스트 목표 완료용 쿠폰 코드 (작동하지 않는 것으로 보임)</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,q_coupon_dol,1</td><td>Is supposed to complete objective for some quest, does not seem to do anything</td><td>특정 퀘스트 목표 완료용 쿠폰 코드 (작동하지 않는 것으로 보임)</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,q_coupon_gal,1</td><td>Is supposed to complete objective for some quest, does not seem to do anything</td><td>특정 퀘스트 목표 완료용 쿠폰 코드 (작동하지 않는 것으로 보임)</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,q_coupon_man,1</td><td>Is supposed to complete objective for some quest, does not seem to do anything</td><td>특정 퀘스트 목표 완료용 쿠폰 코드 (작동하지 않는 것으로 보임)</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,q_coupon_ric,1</td><td>Is supposed to complete objective for some quest, does not seem to do anything</td><td>특정 퀘스트 목표 완료용 쿠폰 코드 (작동하지 않는 것으로 보임)</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,q_coupon_ron,1</td><td>Is supposed to complete objective for some quest, does not seem to do anything</td><td>특정 퀘스트 목표 완료용 쿠폰 코드 (작동하지 않는 것으로 보임)</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,q_coupon_su,1</td><td>Is supposed to complete objective for some quest, does not seem to do anything</td><td>특정 퀘스트 목표 완료용 쿠폰 코드 (작동하지 않는 것으로 보임)</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,q_coupon_wal,1</td><td>Is supposed to complete objective for some quest, does not seem to do anything</td><td>특정 퀘스트 목표 완료용 쿠폰 코드 (작동하지 않는 것으로 보임)</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,r_bat2,1</td><td>Unlocks LightSaber to be crafted in the garage (its “recipe”)</td><td>차고에서 제작할 수 있는 **광선검 레시피** 잠금 해제</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,r_bat3,1</td><td>Unlocks LightSword to be crafted in the garage (its “recipe”)</td><td>차고에서 제작할 수 있는 **광검 레시피** 잠금 해제</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,r_cockhorse,1</td><td>Unlocks Cockhorse to be crafted in the garage (its “recipe”)</td><td>차고에서 제작할 수 있는 **콕호스 (목마) 레시피** 잠금 해제</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,r_dolly,1</td><td>Unlocks Dolly's new outfit to be crafted in the garage (its “recipe”)</td><td>차고에서 제작할 수 있는 **돌리의 새 복장 레시피** 잠금 해제</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,r_gun2,1</td><td>Unlocks Power Gun to be crafted in the garage (its “recipe”)</td><td>차고에서 제작할 수 있는 **파워 건 레시피** 잠금 해제</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,r_gun3,1</td><td>Unlocks Super Gun to be crafted in the garage (its “recipe”)</td><td>차고에서 제작할 수 있는 **슈퍼 건 레시피** 잠금 해제</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,r_handmadeDoll,1</td><td>Unlocks Hand-Made Doll to be crafted in the garage (its “recipe”)</td><td>차고에서 제작할 수 있는 **수제 인형 레시피** 잠금 해제</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,r_lemonbooth,1</td><td>Unlocks Raury's lemonade stand to be crafted in the garage (its “recipe”)</td><td>차고에서 제작할 수 있는 **로리의 레모네이드 가판대 레시피** 잠금 해제</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,r_magicCircle,1</td><td>Unlocks Summoning Circle to be crafted in the garage (its “recipe”)</td><td>차고에서 제작할 수 있는 **소환 서클 레시피** 잠금 해제</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,r_milk_big,1</td><td>Unlocks Big Milk to be crafted in the garage (its “recipe”)</td><td>차고에서 제작할 수 있는 **대형 우유 레시피** 잠금 해제</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,r_sock,1</td><td>Unlocks Christmas Stocking to be crafted in the garage (its “recipe”)</td><td>차고에서 제작할 수 있는 **크리스마스 양말 레시피** 잠금 해제</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,r_toyBox,1</td><td>Unlocks Toy Box to be crafted in the garage (its “recipe”)</td><td>차고에서 제작할 수 있는 **장난감 상자 레시피** 잠금 해제</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,sleep_drug_missy,1</td><td>Determines how many consecutive nights Missy will sleep with you (or rather, visit you in your sleep)</td><td>**미시**가 연속적으로 함께 잠을 자는(또는 잠든 당신을 방문하는) 횟수를 결정</td></tr>
+            <tr><td class="code-cell" onclick="copyCode(this)">item,sleep_raury,1</td><td>Determines how many consecutive nights Raury will sleep with you</td><td>**로리**가 연속적으로 함께 잠을 자는 횟수를 결정</td></tr>
+            </tbody>
+    </table>
+
+    <script>
+        const STORAGE_KEY = 'savedUrlList'; 
+
+        // 페이지 로드 시 저장된 URL 목록 불러오기
+        document.addEventListener('DOMContentLoaded', (event) => {
+            loadUrl();
+        });
+
+        // ----------------------------------------------------
+        // --- 저장소 관리 함수 ---
+        // ----------------------------------------------------
+
+        // 저장된 목록을 localStorage에서 불러오거나 빈 배열 반환
+        function getSavedData() {
+            const dataString = localStorage.getItem(STORAGE_KEY);
+            if (dataString) {
+                try {
+                    return JSON.parse(dataString);
+                } catch (e) {
+                    console.error("저장된 데이터 파싱 오류:", e);
+                    return [];
+                }
+            }
+            return [];
+        }
+
+        // URL 정보 저장 함수
+        function saveUrl() {
+            const titleInput = document.getElementById('titleInput'); 
+            const urlInput = document.getElementById('urlInput');
+            
+            let title = titleInput.value.trim();
+            const url = urlInput.value.trim();
+
+            if (!url) {
+                alert('URL을 입력해 주세요.');
+                return;
+            }
+
+            // 간단한 URL 유효성 검사
+            if (!url.match(/^https?:\/\//i)) {
+                alert('유효한 URL을 입력해 주세요 (http:// 또는 https://를 포함해야 합니다).');
+                return;
+            }
+
+            const savedList = getSavedData();
+            
+            // 제목이 비어있으면 순서 번호로 대체
+            if (!title) {
+                title = (savedList.length + 1).toString();
+            }
+
+            // 새 항목을 배열에 추가
+            savedList.push({ title: title, url: url });
+            
+            // 업데이트된 목록을 다시 저장
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(savedList));
+            
+            loadUrl(); // 화면 갱신
+            showCopyFeedback('저장되었습니다!', 1000); 
+            
+            // 입력 필드 초기화
+            titleInput.value = '';
+            urlInput.value = '';
+        }
+
+        // 목록의 특정 항목을 인덱스로 삭제하는 함수
+        function deleteUrl(index) {
+            const savedList = getSavedData();
+
+            if (index >= 0 && index < savedList.length) {
+                if (confirm(`'${savedList[index].title}' 정보를 정말로 삭제하시겠습니까?`)) {
+                    savedList.splice(index, 1); 
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(savedList));
+                    loadUrl(); // 화면 갱신
+                    showCopyFeedback('삭제되었습니다!', 1000); 
+                }
+            }
+        }
+
+        // 저장된 목록을 불러와서 화면에 표시하는 함수
+        function loadUrl() {
+            const savedList = getSavedData();
+            const displayElement = document.getElementById('savedUrlDisplay');
+            displayElement.innerHTML = ''; 
+
+            if (savedList.length > 0) {
+                // 목록의 각 항목을 HTML로 생성
+                savedList.forEach((data, index) => {
+                    // URL 표시 코드가 제거된 상태
+                    const itemHtml = `
+                        <div class="saved-item">
+                            <div class="item-title">${data.title}</div>
+                            <div class="item-actions">
+                                <button class="url-copy-button" onclick="copyTextToClipboard('${data.url.replace(/'/g, "\\'")}', 'URL 복사')">URL 복사</button>
+                                <button class="url-delete-button" onclick="deleteUrl(${index})">삭제</button>
+                            </div>
+                        </div>
+                    `;
+                    displayElement.innerHTML += itemHtml;
+                });
+            } else {
+                displayElement.innerText = '저장된 정보가 없습니다.';
+            }
+        }
+
+        // ----------------------------------------------------
+        // --- 복사 기능 함수 ---
+        // ----------------------------------------------------
+
+        // 범용 클립보드 복사 함수
+        function copyTextToClipboard(textToCopy, buttonText) {
+            const cleanText = textToCopy.replace(/\\'/g, "'"); 
+            const successMessage = buttonText === 'URL 복사' ? 'URL이 복사되었습니다!' : '코드가 복사되었습니다!';
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(cleanText).then(() => {
+                    showCopyFeedback(successMessage, 800);
+                }).catch(err => {
+                    console.error('클립보드 복사 실패 (navigator.clipboard):', err);
+                    fallbackCopyTextToClipboard(cleanText, successMessage);
+                });
+            } else {
+                fallbackCopyTextToClipboard(cleanText, successMessage);
+            }
+        }
+        
+        // 테이블 셀 코드 복사 함수
+        function copyCode(element) {
+            const textToCopy = element.innerText;
+            copyTextToClipboard(textToCopy, '코드 복사');
+        }
+
+        // 대체 복사 함수
+        function fallbackCopyTextToClipboard(text, successMessage) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.width = "2em";
+            textArea.style.height = "2em";
+            textArea.style.padding = "0";
+            textArea.style.border = "none";
+            textArea.style.outline = "none";
+            textArea.style.boxShadow = "none";
+            textArea.style.background = "transparent";
+
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showCopyFeedback(successMessage, 800);
+                } else {
+                    alert('복사 실패: Ctrl+C 또는 Cmd+C를 눌러 직접 복사해 주세요.\n\n코드: ' + text);
+                }
+            } catch (err) {
+                console.error('대체 복사 실패:', err);
+                alert('복사 실패: Ctrl+C 또는 Cmd+C를 눌러 직접 복사해 주세요.\n\n코드: ' + text);
+            }
+
+            document.body.removeChild(textArea);
+        }
+
+        // 복사 성공 피드백 메시지 표시
+        function showCopyFeedback(message, duration) {
+            const feedback = document.getElementById('copy-feedback');
+            feedback.innerText = message; 
+            feedback.classList.add('show');
+            setTimeout(() => {
+                feedback.classList.remove('show');
+            }, duration); 
+        }
+    </script>
+
+</body>
+</html>
